@@ -10,15 +10,21 @@ const express = require('express');
 const User = require('./models/User');
 const Post = require('./models/Post');
 /*
-// Edit POST   (the post owner)
-// Delete POST  (the post owner)
-// Post comment to post
+1 - Fork the repo
+2 - clone your repo after forking
+3 - make the changes
+ Edit POST   (the post owner)
+ Delete POST  (the post owner)
+ Post comment to post
 [{
   userId,
   content
 }]
-// Query to comments of specific post
-// Edit getAllPosts query to get comment
+ Query to comments of specific post
+ Edit getAllPosts query to get comment
+ 4 - git add .
+ 5 - git commit -m "Lab"
+ 6 - git push origin main
 */
 
 const schema = buildSchema(`
