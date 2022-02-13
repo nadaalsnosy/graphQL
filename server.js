@@ -134,7 +134,7 @@ const rootValue = {
   ...userMutations,
   ...postsMutation,
   ...postsQuery,
-  hello: () => 'Hello world',
+  hello: () => 'Hello world2',
 };
 
 const app = express();
