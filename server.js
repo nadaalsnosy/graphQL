@@ -1,4 +1,4 @@
-/* eslint-disable semi */
+/* eslint-disable max-len *//* eslint-disable no-console *//* eslint-disable object-curly-newline *//* eslint-disable linebreak-style */
 require('./mongoconnect');
 
 const { buildSchema } = require('graphql');
@@ -9,23 +9,7 @@ const jwtSecret = 'husshh';
 const express = require('express');
 const User = require('./models/User');
 const Post = require('./models/Post');
-/*
-1 - Fork the repo
-2 - clone your repo after forking
-3 - make the changes
- Edit POST   (the post owner)
- Delete POST  (the post owner)
- Post comment to post
-[{
-  userId,
-  content
-}]
- Query to comments of specific post
- Edit getAllPosts query to get comment
- 4 - git add .
- 5 - git commit -m "Lab"
- 6 - git push origin main
-*/
+const Comment = require('./models/Comment');
 
 const schema = buildSchema(`
   "The data the user needs to enter to register"
@@ -49,6 +33,11 @@ const schema = buildSchema(`
     content: String!
     user: User!
   }
+  type Comment{
+    content: String!
+    user: User!
+    post: Post!
+  }
   type Query{
     hello: String
     getMyPosts(token: String): [Post!]!
@@ -58,29 +47,20 @@ const schema = buildSchema(`
     createUser(userData: UserRegistrationInput): User
     loginUser(username: String, password: String): LoginPayload
     postCreate(token:String, content:String): String
+    postDelete(token:String, postId:String): String
+    postEdit(token:String, postId:String, content:String): String
+    commentCreate(token:String, content:String, postId:String): String
   }
 `);
 
 
 const userMutations = {
   createUser: async ({
-    userData: {
-      username, password, firstName, lastName, age,
-    },
+    userData: { username, password, firstName, lastName, age },
   }) => {
-    const user = new User({
-      username,
-      password,
-      firstName,
-      lastName,
-      age,
-    });
+    const user = new User({ username, password, firstName, lastName, age });
     await user.save();
-    return {
-      firstName,
-      lastName,
-      age,
-    };
+    return { firstName, lastName, age };
   },
   loginUser: async ({ username, password }) => {
     const user = await User.findOne({ username });
@@ -101,16 +81,56 @@ const auth = async (token) => {
   }
 };
 
-
 const postsMutation = {
   postCreate: async ({ content, token }) => {
     const user = await auth(token);
     if (!user) return 'Authentication error';
-    const userId = user.id;
-    const post = new Post({ userId, content });
-    await post.save();
-    return 'Success';
+
+    try {
+      const userId = user.id;
+      const post = new Post({ userId, content });
+      await post.save();
+      return post;
+    } catch (error) {
+      return 'Post Deletetion Failed';
+    }
   },
+  postDelete: async ({ token, postId }) => {
+    const user = await auth(token);
+    if (!user) return 'Authentication error';
+
+    try {
+      const userId = user.id;
+      await Post.deleteOne({ _id: postId });
+      const posts = await Post.find({ userId });
+      return posts;
+    } catch (err) {
+      return 'Post Deletetion Failed';
+    }
+  },
+  postEdit: async ({ token, content, postId }) => {
+    const user = await auth(token);
+    if (!user) return 'Authentication error';
+
+    try {
+      const post = await Post.findOneAndUpdate({ _id: postId }, { content });
+      return post;
+    } catch (error) {
+      return 'Post Alteration Failed';
+    }
+  },
+};
+
+const commentsMutation = {
+  commentCreate: async ({ token, content, postId }) => {
+    const user = await auth(token);
+    if (!user) return 'Authentication error';
+    const userId = user.id;
+    const comment = new Comment({ content, userId, postId });
+    await comment.save();
+    return user.Comment;
+  },
+
 };
 
 
@@ -124,8 +144,17 @@ const postsQuery = {
   },
 
   getAllPosts: async () => {
-    const posts = await Post.find({}).populate('userId')
-    return posts.map(p => ({ ...p.toJSON(), user: p.userId }))
+    const posts = await Post.find({}).populate('userId');
+    return posts.map(p => ({ ...p.toJSON(), user: p.userId }));
+  },
+};
+
+const commentsQuery = {
+  getPostComments: async ({ token, postId }) => {
+    const user = await auth(token);
+    if (!user) return 'Authentication error';
+    const comments = await Comment.find({ postId });
+    return comments;
   },
 };
 
@@ -133,13 +162,15 @@ const postsQuery = {
 const rootValue = {
   ...userMutations,
   ...postsMutation,
+  ...commentsMutation,
   ...postsQuery,
+  ...commentsQuery,
   hello: () => 'Hello world2',
 };
 
 const app = express();
 
-app.use('/graph', graphqlHTTP({ schema, rootValue, graphiql: true }));
+app.use('/graphql', graphqlHTTP({ schema, rootValue, graphiql: true }));
 
 app.listen(5000, () => {
   console.log('Server is runing');
