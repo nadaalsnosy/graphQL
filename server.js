@@ -41,6 +41,7 @@ const schema = buildSchema(`
   type Query{
     hello: String
     getMyPosts(token: String): [Post!]!
+    getPostComments(token: String, postId:String): [Comment!]!
     getAllPosts: [Post!]!
   }
   type Mutation{
